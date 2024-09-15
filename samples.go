@@ -1,6 +1,7 @@
 package mixorama
 
 import (
+	"math"
 	"os"
 
 	"github.com/go-audio/audio"
@@ -92,4 +93,79 @@ func PadSamples(wave1, wave2 []int16) ([]int16, []int16) {
 	paddedWave2 := make([]int16, length1)
 	copy(paddedWave2, wave2)
 	return wave1, paddedWave2
+}
+
+// LowPassFilter is a simple low-pass filter that can remove high frequencies
+func LowPassFilter(samples []int16, sampleRate int, cutoffFrequency float64) []int16 {
+	rc := 1.0 / (2.0 * math.Pi * cutoffFrequency)
+	dt := 1.0 / float64(sampleRate)
+	alpha := dt / (rc + dt)
+
+	filteredSamples := make([]int16, len(samples))
+	filteredSamples[0] = samples[0]
+
+	for i := 1; i < len(samples); i++ {
+		filteredSamples[i] = int16(float64(filteredSamples[i-1]) + alpha*(float64(samples[i])-float64(filteredSamples[i-1])))
+	}
+
+	return filteredSamples
+}
+
+// NormalizeSamples scales the samples so the peak amplitude matches the given max amplitude
+func NormalizeSamples(samples []int16, targetPeak int16) []int16 {
+	// Find the current peak amplitude
+	currentPeak := FindPeakAmplitude(samples)
+
+	// Calculate scaling factor
+	if currentPeak == 0 {
+		return samples // Avoid division by zero
+	}
+
+	scale := float64(targetPeak) / float64(currentPeak)
+
+	l := len(samples)
+
+	// Apply scaling to all samples
+	normalizedSamples := make([]int16, l)
+	for i := 0; i < l; i++ {
+		normalized := float64(samples[i]) * scale
+		if normalized > math.MaxInt16 {
+			normalizedSamples[i] = math.MaxInt16
+		} else if normalized < math.MinInt16 {
+			normalizedSamples[i] = math.MinInt16
+		} else {
+			normalizedSamples[i] = int16(normalized)
+		}
+	}
+
+	return normalizedSamples
+}
+
+// FindPeakAmplitude returns the maximum absolute amplitude in the sample set
+func FindPeakAmplitude(samples []int16) int16 {
+	maxAmplitude := int16(0)
+	for _, sample := range samples {
+		if abs := int16(math.Abs(float64(sample))); abs > maxAmplitude {
+			maxAmplitude = abs
+		}
+	}
+	return maxAmplitude
+}
+
+// AnalyzeHighestFrequency estimates the highest frequency in the audio signal
+func AnalyzeHighestFrequency(samples []int16, sampleRate int) float64 {
+	// Simple estimation: check zero crossings
+	zeroCrossings := 0
+	l := len(samples)
+	for i := 1; i < l; i++ {
+		if (samples[i-1] > 0 && samples[i] < 0) || (samples[i-1] < 0 && samples[i] > 0) {
+			zeroCrossings++
+		}
+	}
+
+	// Highest frequency estimation based on zero crossings
+	duration := float64(l) / float64(sampleRate)
+	frequency := float64(zeroCrossings) / (2 * duration)
+
+	return frequency
 }
