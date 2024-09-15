@@ -1,4 +1,4 @@
-package mix
+package mixorama
 
 import (
 	"errors"
