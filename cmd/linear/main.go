@@ -11,60 +11,6 @@ import (
 
 const version = "0.0.1"
 
-// Simple low-pass filter to remove high frequencies
-func lowPassFilter(samples []int16, sampleRate int, cutoffFrequency float64) []int16 {
-	rc := 1.0 / (2.0 * math.Pi * cutoffFrequency)
-	dt := 1.0 / float64(sampleRate)
-	alpha := dt / (rc + dt)
-
-	filteredSamples := make([]int16, len(samples))
-	filteredSamples[0] = samples[0]
-
-	for i := 1; i < len(samples); i++ {
-		filteredSamples[i] = int16(float64(filteredSamples[i-1]) + alpha*(float64(samples[i])-float64(filteredSamples[i-1])))
-	}
-
-	return filteredSamples
-}
-
-// normalizeSamples scales the combined samples so that the peak amplitude matches the target peak amplitude
-func normalizeSamples(samples []int16, targetPeak int16) []int16 {
-	currentPeak := findPeakAmplitude(samples)
-	if currentPeak == 0 || targetPeak == 0 {
-		fmt.Println("Skipping normalization due to zero or invalid peak amplitude.")
-		return samples // Avoid division by zero or scaling silent audio
-	}
-
-	// Calculate scaling factor based on peak amplitude
-	scale := float64(targetPeak) / float64(currentPeak)
-
-	// Apply scaling to all samples
-	normalizedSamples := make([]int16, len(samples))
-	for i := range samples {
-		normalized := float64(samples[i]) * scale
-		if normalized > math.MaxInt16 {
-			normalizedSamples[i] = math.MaxInt16
-		} else if normalized < math.MinInt16 {
-			normalizedSamples[i] = math.MinInt16
-		} else {
-			normalizedSamples[i] = int16(normalized)
-		}
-	}
-
-	return normalizedSamples
-}
-
-// findPeakAmplitude returns the maximum absolute amplitude in the sample set
-func findPeakAmplitude(samples []int16) int16 {
-	maxAmplitude := int16(0)
-	for _, sample := range samples {
-		if abs := int16(math.Abs(float64(sample))); abs > maxAmplitude {
-			maxAmplitude = abs
-		}
-	}
-	return maxAmplitude
-}
-
 func main() {
 	// Define flags
 	outputFile := flag.String("o", "combined.wav", "Specify the output file")
@@ -102,7 +48,7 @@ func main() {
 	}
 
 	// Find the loudest peak across all input files
-	loudestPeak := findPeakAmplitude(combined)
+	loudestPeak := mixorama.FindPeakAmplitude(combined)
 
 	// Process additional files and mix them using weighted summation
 	for _, inputFile := range inputFiles[1:] {
@@ -118,7 +64,7 @@ func main() {
 		}
 
 		// Find the peak amplitude in the current file and track the loudest peak
-		peak := findPeakAmplitude(wave)
+		peak := mixorama.FindPeakAmplitude(wave)
 		if peak > loudestPeak {
 			loudestPeak = peak
 		}
@@ -141,11 +87,11 @@ func main() {
 
 	// Apply low-pass filter using a reasonable cutoff frequency (e.g., 15kHz to remove high-frequency noise)
 	fmt.Println("Applying low-pass filter to combined audio.")
-	combined = lowPassFilter(combined, sampleRate, 15000) // Cut off frequencies above 15kHz
+	combined = mixorama.LowPassFilter(combined, sampleRate, 15000) // Cut off frequencies above 15kHz
 
 	// Normalize the final combined samples based on the loudest peak value
 	fmt.Printf("Normalizing combined file to match the loudest input peak: %d\n", loudestPeak)
-	combined = normalizeSamples(combined, loudestPeak)
+	combined = mixorama.NormalizeSamples(combined, loudestPeak)
 
 	// Save the final combined result to the output file
 	if err := mixorama.SaveWav(*outputFile, combined, sampleRate); err != nil {
