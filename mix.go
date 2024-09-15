@@ -69,9 +69,7 @@ func WeightedSummation(weights []float64, samples ...[]int16) ([]int16, error) {
 	return combined, nil
 }
 
-// RMSMixing mixes multiple audio samples using the Root Mean Square method.
-// This technique provides a more balanced perception of loudness by squaring the samples,
-// averaging them, and then taking the square root.
+// RMSMixing correctly mixes audio samples using the Root Mean Square method.
 func RMSMixing(samples ...[]int16) ([]int16, error) {
 	if len(samples) == 0 {
 		return nil, errors.New("no samples provided")
@@ -86,12 +84,13 @@ func RMSMixing(samples ...[]int16) ([]int16, error) {
 			if len(sample) != numSamples {
 				return nil, errors.New("mismatched sample lengths")
 			}
-			sumSquares += float64(sample[i] * sample[i])
+			// Square the sample value and accumulate
+			sumSquares += float64(sample[i]) * float64(sample[i])
 		}
-		// Compute RMS: sqrt(mean(square(samples)))
+		// Calculate RMS by taking the square root of the mean of squares
 		rms := math.Sqrt(sumSquares / float64(len(samples)))
 
-		// Clamp the result to avoid overflow
+		// Clamp the result to int16 range
 		if rms > float64(math.MaxInt16) {
 			rms = float64(math.MaxInt16)
 		} else if rms < float64(math.MinInt16) {
