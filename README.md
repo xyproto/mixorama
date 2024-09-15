@@ -1,16 +1,17 @@
+
 # Mixorama
 
-The `mixorama` package provides different ways of mixing `[]int16` audio samples.
+The `mixorama` package provides several ways of manipulating and mixing `[]int16` audio samples, including linear summation, weighted summation, and Root Mean Square (RMS) mixing. Additionally, it provides functions for loading and saving `.wav` files, padding audio samples, applying low-pass filtering, and normalizing the audio signal.
 
-A couple of different mixing strategies are provided: linear summation, weighted summation and Root Mean Square (RMS).
-
-* NOTE: this package is experimental and a work in progress!
+* NOTE: This package is experimental and a work in progress!
 
 ## Functions
 
-### `func LinearSummation(samples ...[]int16) ([]int16, error)`
+### Mixing Functions
+
+#### `func LinearSummation(samples ...[]int16) ([]int16, error)`
 - **Description**:
-    - This function adds multiple audio samples together. It automatically clamps the sum to ensure that it stays within the valid range of `int16` values, thus avoiding overflow and distortion.
+    - This function adds multiple audio samples together. It automatically clamps the sum to ensure that it stays within the valid range of `int16` values, avoiding overflow and distortion.
 - **Parameters**:
     - `samples`: A variable number of slices where each slice contains `int16` audio samples.
 - **Returns**:
@@ -21,7 +22,7 @@ A couple of different mixing strategies are provided: linear summation, weighted
     combined, err := LinearSummation(wave1, wave2, wave3)
     ```
 
-### `func WeightedSummation(weights []float64, samples ...[]int16) ([]int16, error)`
+#### `func WeightedSummation(weights []float64, samples ...[]int16) ([]int16, error)`
 - **Description**:
     - This function allows for weighted summation of multiple audio samples. Each sample is scaled by its corresponding weight before being summed together. This provides control over the relative volumes of each input.
 - **Parameters**:
@@ -36,9 +37,9 @@ A couple of different mixing strategies are provided: linear summation, weighted
     combined, err := WeightedSummation(weights, wave1, wave2, wave3)
     ```
 
-### `func RMSMixing(samples ...[]int16) ([]int16, error)`
+#### `func RMSMixing(samples ...[]int16) ([]int16, error)`
 - **Description**:
-    - This function uses the Root Mean Square (RMS) method to mix multiple audio samples. It squares each sample, calculates the mean of the squares, and then takes the square root of the result. This technique helps provide a more balanced perception of loudness when mixing.
+    - This function mixes audio samples using the Root Mean Square (RMS) method. It squares each sample, calculates the mean of the squares, and then takes the square root of the result. This technique helps provide a more balanced perception of loudness when mixing.
 - **Parameters**:
     - `samples`: A variable number of slices where each slice contains `int16` audio samples.
 - **Returns**:
@@ -49,7 +50,101 @@ A couple of different mixing strategies are provided: linear summation, weighted
     combined, err := RMSMixing(wave1, wave2)
     ```
 
-## Example use
+### Utility Functions
+
+#### `func LoadWav(filename string) ([]int16, int, error)`
+- **Description**:
+    - Loads a `.wav` file and returns the audio samples as `[]int16` (stereo), along with the sample rate. If the file is mono, it duplicates the mono channel to create stereo output.
+- **Parameters**:
+    - `filename`: The path to the `.wav` file.
+- **Returns**:
+    - A slice of `int16` containing the audio samples.
+    - The sample rate as an `int`.
+    - An error if the file could not be loaded.
+- **Usage**:
+    ```go
+    samples, sampleRate, err := LoadWav("input.wav")
+    ```
+
+#### `func SaveWav(filename string, samples []int16, sampleRate int) error`
+- **Description**:
+    - Saves a slice of `int16` audio samples as a `.wav` file.
+- **Parameters**:
+    - `filename`: The path where the `.wav` file will be saved.
+    - `samples`: A slice of `int16` containing the audio samples.
+    - `sampleRate`: The sample rate of the audio.
+- **Returns**:
+    - An error if the file could not be saved.
+- **Usage**:
+    ```go
+    err := SaveWav("output.wav", samples, sampleRate)
+    ```
+
+#### `func PadSamples(wave1, wave2 []int16) ([]int16, []int16)`
+- **Description**:
+    - Pads the shorter sample with zeros (silence) so that both samples have the same length.
+- **Parameters**:
+    - `wave1`, `wave2`: Two slices of `int16` audio samples.
+- **Returns**:
+    - Two slices of `int16`, both with the same length after padding.
+- **Usage**:
+    ```go
+    paddedWave1, paddedWave2 := PadSamples(wave1, wave2)
+    ```
+
+#### `func LowPassFilter(samples []int16, sampleRate int, cutoffFrequency float64) []int16`
+- **Description**:
+    - Applies a low-pass filter to remove high-frequency noise from the audio samples.
+- **Parameters**:
+    - `samples`: A slice of `int16` containing the audio samples.
+    - `sampleRate`: The sample rate of the audio.
+    - `cutoffFrequency`: The frequency above which audio will be filtered out.
+- **Returns**:
+    - A slice of `int16` containing the filtered audio samples.
+- **Usage**:
+    ```go
+    filteredSamples := LowPassFilter(samples, 44100, 5000) // Low-pass filter with 5kHz cutoff
+    ```
+
+#### `func NormalizeSamples(samples []int16, targetPeak int16) []int16`
+- **Description**:
+    - Normalizes the audio samples so the peak amplitude matches the given `targetPeak`.
+- **Parameters**:
+    - `samples`: A slice of `int16` containing the audio samples.
+    - `targetPeak`: The desired peak amplitude.
+- **Returns**:
+    - A slice of `int16` containing the normalized audio samples.
+- **Usage**:
+    ```go
+    normalizedSamples := NormalizeSamples(samples, 30000)
+    ```
+
+#### `func FindPeakAmplitude(samples []int16) int16`
+- **Description**:
+    - Finds the peak amplitude in the audio samples.
+- **Parameters**:
+    - `samples`: A slice of `int16` containing the audio samples.
+- **Returns**:
+    - The peak amplitude as an `int16`.
+- **Usage**:
+    ```go
+    peak := FindPeakAmplitude(samples)
+    ```
+
+#### `func AnalyzeHighestFrequency(samples []int16, sampleRate int) float64`
+- **Description**:
+    - Estimates the highest frequency in the audio signal by analyzing zero crossings.
+- **Parameters**:
+    - `samples`: A slice of `int16` containing the audio samples.
+    - `sampleRate`: The sample rate of the audio.
+- **Returns**:
+    - The estimated highest frequency as a `float64`.
+- **Usage**:
+    ```go
+    highestFrequency := AnalyzeHighestFrequency(samples, 44100)
+    ```
+
+## Example Use
 
 ```go
 package main
@@ -90,7 +185,7 @@ func main() {
 }
 ```
 
-## General info
+## General Info
 
-* License: MIT
-* Version: 0.0.1
+- License: MIT
+- Version: 0.1.0
